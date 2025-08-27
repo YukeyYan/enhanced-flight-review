@@ -1,66 +1,112 @@
+# 🗂️ Flight Review + LLM Agent - Git 忽略文件配置
 
-# 🚁 Flight Review - Enhanced Git Ignore
+# ===== 数据文件 =====
+# 用户上传的日志文件和生成的数据
+data/
+logs.sqlite
+*.ulg
+*.ulog
 
-# Python
+# 缓存和临时文件
+cache/
+app/plot_app/static/cesium/Build/
+app/plot_app/static/cesium/SampleData/
+
+# ===== Python 相关 =====
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyc
-*.pyo
 *.so
 
-# Database files
-*.sqlite
-*.sql
-data/logs.sqlite
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# IDE files
-*sublime-project
-*sublime-workspace
-/.ipynb_checkpoints
-/app/.ipynb_checkpoints
-/.idea
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# virtualenv
+venv/
+env/
+ENV/
+
+# ===== 配置和密钥 =====
+# 用户配置文件 (可能包含API密钥)
+app/config_user.ini
+config_user.ini
+.env
+.env.local
+
+# 私钥和证书
+app/private_key/
+*.pem
+*.key
+*.crt
+
+# ===== 日志和运行时文件 =====
+*.log
+*.out
+*.pid
+
+# ===== 系统文件 =====
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Linux
+*~
+
+# ===== 编辑器和IDE =====
+# VSCode
 .vscode/
+*.code-workspace
 
-# Configuration files (protect API keys)
-/config_user.ini
-/app/config_user.ini
+# PyCharm
+.idea/
 
-# Data directories (user data protection)
-data/img/*
-data/cache/
-data/log_files/*.ulg
-data/log_files/*.ulge
-data/app_data
-data/certbot
-data/db/
-
-# Private keys and certificates
-app/private_key/private_key.pem
-app/private_key/*.pem
-app/private_key/*.key
-letsencrypt/
-
-# Temporary and log files
+# ===== 备份和临时文件 =====
+*.bak
 *.tmp
 *.temp
-temp_*
-*.log
-logs/
 
-# Test files
-test_*.py
-*_test.py
+# ===== 特定于项目的忽略 =====
+# 测试文件
+test_upload.py
+testing_*
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Uploaded files
-app/*/uploaded_*
-app/*/temp_*
-
-# Abnormal filenames
-*，*
-*"*
-Fpython*
+# 数据库文件
+*.sqlite
+*.sqlite3
+*.db
