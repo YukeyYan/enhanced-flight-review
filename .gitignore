@@ -1,24 +1,66 @@
 
-__pycache__
-*.pyc
+# 🚁 Flight Review - Enhanced Git Ignore
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.so
+
+# Database files
 *.sqlite
 *.sql
+data/logs.sqlite
 
+# IDE files
 *sublime-project
 *sublime-workspace
-
 /.ipynb_checkpoints
 /app/.ipynb_checkpoints
+/.idea
+.vscode/
 
+# Configuration files (protect API keys)
 /config_user.ini
 /app/config_user.ini
 
+# Data directories (user data protection)
 data/img/*
-
+data/cache/
+data/log_files/*.ulg
+data/log_files/*.ulge
 data/app_data
 data/certbot
+data/db/
 
-/.idea
-
+# Private keys and certificates
 app/private_key/private_key.pem
+app/private_key/*.pem
+app/private_key/*.key
+letsencrypt/
+
+# Temporary and log files
+*.tmp
+*.temp
+temp_*
+*.log
+logs/
+
+# Test files
+test_*.py
+*_test.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploaded files
+app/*/uploaded_*
+app/*/temp_*
+
+# Abnormal filenames
+*，*
+*"*
+Fpython*

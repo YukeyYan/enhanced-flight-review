@@ -27,6 +27,19 @@ from tornado_handlers.db_info_json import DBInfoHandler
 from tornado_handlers.three_d import ThreeDHandler
 from tornado_handlers.radio_controller import RadioControllerHandler
 from tornado_handlers.error_labels import UpdateErrorLabelHandler
+try:
+    from tornado_handlers.llm_agent import LLMAnalysisHandler, LLMChatHandler, LLMStatusHandler
+    llm_available = True
+except Exception as e:
+    print(f"Warning: LLM Agent not available: {e}")
+    llm_available = False
+    # 创建占位符类
+    class LLMAnalysisHandler:
+        pass
+    class LLMChatHandler:
+        pass  
+    class LLMStatusHandler:
+        pass
 
 from helper import set_log_id_is_filename, print_cache_info #pylint: disable=C0411
 from config import debug_print_timing, get_overview_img_filepath #pylint: disable=C0411
@@ -126,6 +139,17 @@ extra_patterns = [
     (r"/stats", RedirectHandler, {"url": "/plot_app?stats=1"}),
     (r'/overview_img/(.*)', StaticFileHandler, {'path': get_overview_img_filepath()}),
 ]
+
+# LLM Agent API endpoints (only if available)
+if llm_available:
+    extra_patterns.extend([
+        (r'/api/llm/analyze', LLMAnalysisHandler),
+        (r'/api/llm/chat', LLMChatHandler),
+        (r'/api/llm/status', LLMStatusHandler),
+    ])
+    print("LLM Agent endpoints enabled")
+else:
+    print("LLM Agent endpoints disabled")
 
 server = None
 custom_port = 5006

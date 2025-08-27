@@ -1,14 +1,256 @@
 
 {% include 'header.html' %}
 
+<!-- Add body class for plot pages with sidebar -->
+{% if is_plot_page %}
+<script>
+document.body.classList.add('plot-page-with-sidebar');
+</script>
+{% endif %}
 
 {% if not internal_error %}
 
 {% if is_plot_page %}
 <div class="alert alert-primary"> <!-- alternatives: alert-info, alert-primary, alert-secondary -->
   Do you need help with interpreting the plots?
-  See <a href="https://docs.px4.io/main/en/log/flight_review.html" target="_blank" class="alert-link">here</a>.
+  See <a href="https://docs.px4.io/main/en/log/flight_review.html" target="_blank" class="alert-link">here</a>
+  or check the <strong>AI Assistant</strong> sidebar on the right →
 </div>
+
+<!-- AI Assistant Sidebar -->
+<div class="ai-sidebar" id="ai-sidebar">
+  <div class="ai-sidebar-header">
+    <h4><i class="fa-solid fa-robot"></i> AI Assistant</h4>
+    <button class="ai-sidebar-toggle" onclick="toggleSidebar()">
+      <i class="fa-solid fa-chevron-right" id="sidebar-toggle-icon"></i>
+    </button>
+  </div>
+  
+  <div class="ai-sidebar-body">
+    <!-- Current Log Information -->
+    <div class="ai-log-info" id="ai-log-info">
+      <strong>Current Log:</strong><br>
+      <span id="current-log-name">Loading...</span><br>
+      <small id="log-details">Fetching log details...</small>
+    </div>
+    
+    <!-- Chat Container -->
+    <div class="ai-chat-container">
+      <div class="ai-messages" id="ai-messages">
+        <div class="ai-message assistant">
+          <strong>AI Assistant:</strong> Hi! I'm analyzing your current flight log. Ask me questions like "Why is my drone oscillating?" or "How is the battery performance?"
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Action Buttons -->
+    <div class="ai-quick-actions">
+      <h6>Quick Questions:</h6>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('为什么我的无人机会振荡？')">振荡分析</button>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('电池性能如何？')">电池状态</button>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('有检测到异常吗？')">异常检测</button>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('这次飞行表现怎么样？')">飞行总结</button>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('GPS信号质量如何？')">GPS质量</button>
+      <button class="ai-quick-btn" onclick="askQuickQuestion('控制器性能如何？')">控制性能</button>
+    </div>
+    
+    <!-- Input Section -->
+    <div class="ai-input-section">
+      <div class="ai-input-group">
+        <input type="text" class="ai-input" id="ai-input" 
+               placeholder="问点什么吧..." 
+               onkeypress="handleKeyPress(event)">
+        <button class="ai-send-btn" id="ai-send-btn" onclick="sendQuestion()">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Status Bar -->
+  <div class="ai-status" id="ai-status" style="display: none;"></div>
+</div>
+
+<script>
+// AI Sidebar functionality
+let sidebarCollapsed = false;
+let currentLogId = '';
+
+// Get log ID from URL
+function getCurrentLogId() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('log') || '';
+}
+
+// Initialize sidebar with current log info
+function initializeSidebar() {
+  currentLogId = getCurrentLogId();
+  if (currentLogId) {
+    updateLogInfo(currentLogId);
+  } else {
+    document.getElementById('current-log-name').textContent = 'No log loaded';
+    document.getElementById('log-details').textContent = 'Please upload a log file first';
+  }
+}
+
+// Update log information display
+function updateLogInfo(logId) {
+  if (logId) {
+    document.getElementById('current-log-name').textContent = logId.substring(0, 20) + '...';
+    document.getElementById('log-details').textContent = 'Log loaded and ready for analysis';
+  }
+}
+
+// Toggle sidebar collapse
+function toggleSidebar() {
+  const sidebar = document.getElementById('ai-sidebar');
+  const icon = document.getElementById('sidebar-toggle-icon');
+  const body = document.body;
+  
+  sidebarCollapsed = !sidebarCollapsed;
+  
+  if (sidebarCollapsed) {
+    sidebar.classList.add('collapsed');
+    body.classList.add('sidebar-collapsed');
+    icon.className = 'fa-solid fa-chevron-left';
+  } else {
+    sidebar.classList.remove('collapsed');
+    body.classList.remove('sidebar-collapsed');
+    icon.className = 'fa-solid fa-chevron-right';
+  }
+}
+
+// Handle mobile responsive
+function handleMobileView() {
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('ai-sidebar');
+    sidebar.addEventListener('click', function(e) {
+      if (e.target === sidebar) {
+        sidebar.classList.remove('mobile-open');
+      }
+    });
+  }
+}
+
+// Send quick question
+function askQuickQuestion(question) {
+  document.getElementById('ai-input').value = question;
+  sendQuestion();
+}
+
+// Handle keyboard input
+function handleKeyPress(event) {
+  if (event.key === 'Enter') {
+    sendQuestion();
+  }
+}
+
+// Add message to chat
+function addMessage(content, isUser = false, isHtml = false) {
+  const messagesContainer = document.getElementById('ai-messages');
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'ai-message ' + (isUser ? 'user' : 'assistant');
+  
+  if (isUser) {
+    messageDiv.innerHTML = '<strong>You:</strong> ' + content;
+  } else {
+    messageDiv.innerHTML = '<strong>AI:</strong> ' + (isHtml ? content : content);
+  }
+  
+  messagesContainer.appendChild(messageDiv);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Set status message
+function setStatus(message) {
+  const statusDiv = document.getElementById('ai-status');
+  if (message) {
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+  } else {
+    statusDiv.style.display = 'none';
+  }
+}
+
+// Send question to AI
+async function sendQuestion() {
+  const input = document.getElementById('ai-input');
+  const sendBtn = document.getElementById('ai-send-btn');
+  const question = input.value.trim();
+  
+  if (!question) {
+    alert('请输入问题！');
+    return;
+  }
+  
+  // Disable input and button
+  input.disabled = true;
+  sendBtn.disabled = true;
+  
+  // Add user message
+  addMessage(question, true);
+  input.value = '';
+  
+  setStatus('AI正在分析您的飞行数据...');
+  
+  try {
+    const response = await fetch('/api/llm/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: question,
+        log_id: currentLogId
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      let analysis = result.data.analysis;
+      
+      // Add charts recommendation if available
+      if (result.data.charts && result.data.charts.length > 0) {
+        analysis += '<br><br><strong>推荐查看图表:</strong><br>' + 
+                   result.data.charts.map(chart => '• ' + chart).join('<br>');
+      }
+      
+      // Add suggestions if available
+      if (result.data.suggestions && result.data.suggestions.length > 0) {
+        analysis += '<br><br><strong>建议:</strong><br>' + 
+                   result.data.suggestions.map(s => '• ' + (s.suggestion || s)).join('<br>');
+      }
+      
+      addMessage(analysis, false, true);
+      setStatus('分析完成');
+    } else {
+      addMessage('抱歉，分析失败: ' + (result.error || '未知错误'));
+      setStatus('分析失败');
+    }
+  } catch (error) {
+    addMessage('网络错误: ' + error.message);
+    setStatus('网络错误');
+  } finally {
+    // Re-enable input and button
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+    
+    // Clear status after 3 seconds
+    setTimeout(() => setStatus(''), 3000);
+  }
+}
+
+// Initialize sidebar when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  initializeSidebar();
+  handleMobileView();
+});
+
+// Handle window resize
+window.addEventListener('resize', handleMobileView);
+</script>
 {% endif %}
 
 {{ title_html }}
