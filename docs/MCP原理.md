@@ -469,3 +469,436 @@ graph TD
 - 专业知识与实际数据的结合
 
 这就是您的Agent系统如何实现**智能数据选择**的完整原理！🚁🤖
+
+## 📊 Agent可能获取的ULog数据清单
+
+### **1. Agent如何知道ULog里有什么数据**
+
+```python
+# 启动时自动扫描ULog文件结构
+class ULogAccessor:
+    def __init__(self, path: str):
+        self.ulog = ULog(path)
+
+        # 🔍 关键：自动发现所有可用话题
+        self.topic_map = {d.name: d for d in self.ulog.data_list}
+        self.available_topics = list(self.topic_map.keys())
+
+        # 🔍 自动发现每个话题的字段结构
+        self.topic_schemas = {}
+        for topic_name, topic_data in self.topic_map.items():
+            self.topic_schemas[topic_name] = {
+                'fields': list(topic_data.data.keys()),
+                'sample_count': len(topic_data.data.get('timestamp', [])),
+                'field_types': {k: type(v[0]).__name__ if v else 'unknown'
+                               for k, v in topic_data.data.items()}
+            }
+
+# Agent启动时的发现过程
+def discover_ulog_capabilities(ulog_path: str):
+    accessor = ULogAccessor(ulog_path)
+
+    print("🔍 ULog数据发现结果:")
+    print(f"   总话题数: {len(accessor.available_topics)}")
+    print(f"   消息数量: {len(accessor.list_messages())}")
+    print(f"   飞行时长: {accessor.duration_s:.1f}秒")
+
+    # 按类别分组显示可用数据
+    categorized_topics = categorize_topics(accessor.available_topics)
+    for category, topics in categorized_topics.items():
+        print(f"   {category}: {topics}")
+```
+
+### **2. Agent可能获取的具体ULog话题数据**
+
+#### **🔋 电池系统相关数据**
+```python
+BATTERY_TOPICS = {
+    'battery_status': {
+        'fields': ['voltage_v', 'current_a', 'remaining', 'temperature', 'cell_count'],
+        'description': '主电池状态 - 电压、电流、剩余容量、温度',
+        'usage': 'Agent用于分析电池健康、剩余电量、放电曲线'
+    },
+    'power_monitor': {
+        'fields': ['voltage_v', 'current_a', 'power_w'],
+        'description': '电源监控 - 系统功耗监控',
+        'usage': 'Agent用于分析系统功耗和电源效率'
+    },
+    'vehicle_status': {
+        'fields': ['battery_warning', 'battery_failsafe_flags'],
+        'description': '飞行器状态 - 电池相关警告标志',
+        'usage': 'Agent用于检测电池故障和安全状态'
+    }
+}
+```
+
+#### **📡 GPS/导航系统相关数据**
+```python
+GPS_NAVIGATION_TOPICS = {
+    'vehicle_gps_position': {
+        'fields': ['lat', 'lon', 'alt', 'eph', 'epv', 'satellites_used', 'fix_type'],
+        'description': 'GPS位置数据 - 经纬度、高度、精度、卫星数',
+        'usage': 'Agent用于分析GPS信号质量、定位精度、卫星覆盖'
+    },
+    'estimator_status': {
+        'fields': ['pos_horiz_accuracy', 'pos_vert_accuracy', 'gps_check_fail_flags'],
+        'description': '估计器状态 - 位置估计精度和GPS检查标志',
+        'usage': 'Agent用于评估导航系统健康和定位可靠性'
+    },
+    'vehicle_local_position': {
+        'fields': ['x', 'y', 'z', 'vx', 'vy', 'vz', 'xy_valid', 'z_valid'],
+        'description': '本地位置 - 相对坐标系下的位置和速度',
+        'usage': 'Agent用于分析飞行轨迹、速度变化、位置有效性'
+    }
+}
+```
+
+#### **🛩️ 飞行控制相关数据**
+```python
+FLIGHT_CONTROL_TOPICS = {
+    'vehicle_attitude': {
+        'fields': ['roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed'],
+        'description': '飞行器姿态 - 欧拉角和角速度',
+        'usage': 'Agent用于分析飞行稳定性、姿态控制性能'
+    },
+    'actuator_outputs': {
+        'fields': ['output[0-7]', 'noutputs'],
+        'description': '执行器输出 - 电机PWM输出值',
+        'usage': 'Agent用于分析电机性能、控制响应、功率分配'
+    },
+    'vehicle_angular_velocity': {
+        'fields': ['xyz[0-2]'],
+        'description': '角速度 - 三轴角速度测量',
+        'usage': 'Agent用于检测振动、控制振荡、稳定性问题'
+    }
+}
+```
+
+#### **🔧 传感器相关数据**
+```python
+SENSOR_TOPICS = {
+    'sensor_combined': {
+        'fields': ['accelerometer_m_s2[0-2]', 'gyro_rad[0-2]', 'magnetometer_ga[0-2]'],
+        'description': '组合传感器 - IMU原始数据',
+        'usage': 'Agent用于检测传感器故障、校准问题、振动分析'
+    },
+    'vehicle_imu_status': {
+        'fields': ['accel_vibration_metric', 'gyro_vibration_metric', 'accel_coning_vibration'],
+        'description': 'IMU状态 - 振动指标和传感器健康',
+        'usage': 'Agent用于诊断机械振动、传感器性能评估'
+    },
+    'sensor_preflight_mag': {
+        'fields': ['mag_inconsistency_angle'],
+        'description': '磁力计预检 - 磁力计一致性检查',
+        'usage': 'Agent用于检测磁干扰、校准问题'
+    }
+}
+```
+
+#### **⚠️ 安全系统相关数据**
+```python
+SAFETY_TOPICS = {
+    'safety': {
+        'fields': ['safety_switch_available', 'safety_off', 'override_available'],
+        'description': '安全开关状态',
+        'usage': 'Agent用于检查安全系统配置和状态'
+    },
+    'commander_state': {
+        'fields': ['main_state', 'nav_state', 'arming_state'],
+        'description': '指挥器状态 - 飞行模式和解锁状态',
+        'usage': 'Agent用于分析模式切换、解锁失败原因'
+    },
+    'vehicle_command': {
+        'fields': ['command', 'param1', 'param2', 'target_system'],
+        'description': '飞行器指令 - 接收到的控制指令',
+        'usage': 'Agent用于追踪指令执行和响应'
+    }
+}
+```
+
+### **3. Agent的数据发现流程**
+
+#### **步骤1: ULog结构扫描**
+```python
+def scan_ulog_structure(ulog_path: str) -> Dict[str, Any]:
+    """Agent启动时自动扫描ULog文件"""
+
+    ulog = ULog(ulog_path)
+
+    # 🔍 发现所有话题
+    discovered_topics = []
+    for data in ulog.data_list:
+        topic_info = {
+            'name': data.name,
+            'fields': list(data.data.keys()),
+            'message_count': len(data.data.get('timestamp', [])),
+            'first_timestamp': min(data.data['timestamp']) if 'timestamp' in data.data else 0,
+            'last_timestamp': max(data.data['timestamp']) if 'timestamp' in data.data else 0
+        }
+        discovered_topics.append(topic_info)
+
+    # 🔍 发现所有消息
+    discovered_messages = []
+    for msg in ulog.logged_messages:
+        discovered_messages.append({
+            'timestamp_us': msg.timestamp,
+            'level': msg.log_level_str(),
+            'message': msg.message
+        })
+
+    return {
+        'topics': discovered_topics,
+        'messages': discovered_messages,
+        'total_topics': len(discovered_topics),
+        'total_messages': len(discovered_messages),
+        'flight_duration_s': (ulog.last_timestamp - ulog.start_timestamp) / 1e6
+    }
+```
+
+#### **步骤2: 消息内容智能分析**
+```python
+def analyze_message_intelligence(message: str) -> Dict[str, Any]:
+    """Agent如何从消息推断数据需求"""
+
+    # 🧠 关键词提取
+    keywords = extract_technical_keywords(message)
+
+    # 🧠 子系统识别
+    if any(kw in message.upper() for kw in ['GPS', 'SATELLITE', 'POSITION', 'NAVIGATION']):
+        subsystem = 'GPS_NAVIGATION'
+        data_priority = ['vehicle_gps_position', 'estimator_status', 'vehicle_local_position']
+
+    elif any(kw in message.upper() for kw in ['BATTERY', 'VOLTAGE', 'POWER', 'CURRENT']):
+        subsystem = 'POWER_SYSTEM'
+        data_priority = ['battery_status', 'power_monitor', 'vehicle_status']
+
+    elif any(kw in message.upper() for kw in ['IMU', 'GYRO', 'ACCEL', 'VIBRATION']):
+        subsystem = 'SENSOR_SYSTEM'
+        data_priority = ['sensor_combined', 'vehicle_imu_status', 'vehicle_attitude']
+
+    elif any(kw in message.upper() for kw in ['ARM', 'DISARM', 'SAFETY', 'KILL']):
+        subsystem = 'SAFETY_SYSTEM'
+        data_priority = ['safety', 'commander_state', 'vehicle_command']
+
+    # 🧠 时间窗口智能计算
+    if 'GPS' in subsystem:
+        time_window = 15.0  # GPS信号恢复需要时间
+    elif 'BATTERY' in subsystem:
+        time_window = 10.0  # 电池变化相对缓慢
+    elif 'SENSOR' in subsystem:
+        time_window = 5.0   # 传感器问题响应快
+    else:
+        time_window = 8.0   # 默认窗口
+
+    return {
+        'subsystem': subsystem,
+        'recommended_topics': data_priority,
+        'time_window_s': time_window,
+        'confidence': calculate_confidence(keywords, message)
+    }
+```
+
+### **4. Agent可能获取的完整数据列表**
+
+#### **🎯 核心飞行数据 (Agent必获取)**
+```python
+CORE_FLIGHT_DATA = [
+    'vehicle_status',           # 飞行器基础状态
+    'commander_state',          # 指挥器和模式状态
+    'vehicle_local_position',   # 位置和速度
+    'vehicle_attitude',         # 姿态角和角速度
+    'battery_status',           # 电池状态
+    'vehicle_gps_position'      # GPS位置数据
+]
+```
+
+#### **🔍 问题诊断数据 (按需获取)**
+```python
+DIAGNOSTIC_DATA = {
+    'GPS问题': [
+        'vehicle_gps_position',     # GPS原始数据
+        'estimator_status',         # 估计器状态
+        'vehicle_local_position',   # 本地位置估计
+        'sensor_gps',              # GPS传感器数据
+        'vehicle_global_position'   # 全局位置
+    ],
+
+    '电池问题': [
+        'battery_status',          # 电池状态详情
+        'power_monitor',           # 功耗监控
+        'esc_status',             # 电调状态
+        'actuator_outputs'        # 电机输出功率
+    ],
+
+    '振动问题': [
+        'sensor_combined',         # IMU原始数据
+        'vehicle_imu_status',      # IMU状态和振动指标
+        'vehicle_angular_velocity', # 角速度
+        'actuator_outputs',        # 电机输出
+        'vehicle_attitude'         # 姿态稳定性
+    ],
+
+    '控制问题': [
+        'vehicle_attitude_setpoint', # 姿态设定值
+        'vehicle_rates_setpoint',    # 角速度设定值
+        'actuator_controls',         # 控制器输出
+        'actuator_outputs',          # 执行器输出
+        'vehicle_angular_velocity'   # 实际角速度
+    ],
+
+    '导航问题': [
+        'mission',                 # 任务航点
+        'position_setpoint_triplet', # 位置设定值
+        'vehicle_local_position_setpoint', # 本地位置设定
+        'vehicle_global_position', # 全局位置
+        'wind_estimate'           # 风速估计
+    ]
+}
+```
+
+#### **📈 性能分析数据 (深度分析)**
+```python
+PERFORMANCE_DATA = [
+    'cpuload',                 # CPU负载
+    'memory_status',           # 内存使用
+    'logger_status',           # 日志记录状态
+    'system_power',            # 系统功耗
+    'vehicle_imu_status',      # 传感器性能
+    'estimator_status',        # 估计器性能
+    'rate_ctrl_status',        # 控制器性能
+    'vehicle_thrust_setpoint', # 推力设定
+    'manual_control_setpoint'  # 手动控制输入
+]
+```
+
+### **5. 数据发现的技术实现**
+
+#### **ULog文件结构自动解析**
+```python
+def auto_discover_ulog_content(ulog_path: str) -> Dict[str, Any]:
+    """Agent自动发现ULog内容的完整过程"""
+
+    # 1. 打开ULog文件
+    ulog = ULog(ulog_path, None, disable_str_exceptions=True)
+
+    # 2. 扫描所有数据话题
+    topic_inventory = {}
+    for data in ulog.data_list:
+        topic_name = data.name
+        topic_data = data.data
+
+        # 分析话题内容
+        topic_inventory[topic_name] = {
+            'available': True,
+            'field_count': len(topic_data.keys()),
+            'message_count': len(topic_data.get('timestamp', [])),
+            'fields': list(topic_data.keys()),
+            'data_types': {k: type(v[0]).__name__ if v else 'empty'
+                          for k, v in topic_data.items()},
+            'time_span_us': [
+                min(topic_data['timestamp']) if 'timestamp' in topic_data else 0,
+                max(topic_data['timestamp']) if 'timestamp' in topic_data else 0
+            ],
+            'sample_rate_hz': calculate_sample_rate(topic_data.get('timestamp', []))
+        }
+
+    # 3. 扫描系统消息
+    message_inventory = []
+    for msg in ulog.logged_messages:
+        message_inventory.append({
+            'timestamp_us': msg.timestamp,
+            'level': msg.log_level_str(),
+            'content': msg.message,
+            'component': extract_component(msg.message),
+            'category': classify_message(msg.message)
+        })
+
+    # 4. 构建数据能力映射
+    capabilities = {
+        'total_topics': len(topic_inventory),
+        'total_messages': len(message_inventory),
+        'flight_duration_s': (ulog.last_timestamp - ulog.start_timestamp) / 1e6,
+        'available_subsystems': detect_available_subsystems(topic_inventory),
+        'topic_inventory': topic_inventory,
+        'message_inventory': message_inventory
+    }
+
+    return capabilities
+
+def detect_available_subsystems(topic_inventory: Dict[str, Any]) -> List[str]:
+    """检测ULog中包含哪些子系统的数据"""
+    subsystems = []
+
+    # 检查各子系统的关键话题是否存在
+    if 'vehicle_gps_position' in topic_inventory:
+        subsystems.append('GPS_NAVIGATION')
+    if 'battery_status' in topic_inventory:
+        subsystems.append('POWER_SYSTEM')
+    if 'sensor_combined' in topic_inventory:
+        subsystems.append('SENSOR_SYSTEM')
+    if 'actuator_outputs' in topic_inventory:
+        subsystems.append('CONTROL_SYSTEM')
+    if 'safety' in topic_inventory:
+        subsystems.append('SAFETY_SYSTEM')
+
+    return subsystems
+```
+
+### **6. Agent的智能数据获取示例**
+
+```python
+# 实际运行示例
+def example_agent_data_selection():
+    """Agent智能数据选择的实际例子"""
+
+    # 用户上传ULog文件
+    ulog_path = "flight_log_001.ulg"
+
+    # 1. Agent自动发现数据结构
+    capabilities = auto_discover_ulog_content(ulog_path)
+    print(f"发现 {capabilities['total_topics']} 个话题")
+    print(f"发现 {capabilities['total_messages']} 条消息")
+    print(f"可用子系统: {capabilities['available_subsystems']}")
+
+    # 2. 用户问题："为什么GPS信号不稳定？"
+    user_question = "为什么GPS信号不稳定？"
+
+    # 3. Agent分析相关消息
+    gps_messages = [msg for msg in capabilities['message_inventory']
+                   if any(kw in msg['content'].upper() for kw in ['GPS', 'SATELLITE', 'POSITION'])]
+
+    # 4. Agent智能选择数据
+    selected_data = {
+        'primary_topics': ['vehicle_gps_position', 'estimator_status'],
+        'secondary_topics': ['vehicle_local_position', 'sensor_gps'],
+        'time_windows': [(msg['timestamp_us'] - 15e6, msg['timestamp_us'] + 15e6)
+                        for msg in gps_messages],
+        'key_fields': {
+            'vehicle_gps_position': ['satellites_used', 'eph', 'epv', 'fix_type'],
+            'estimator_status': ['gps_check_fail_flags', 'pos_horiz_accuracy']
+        }
+    }
+
+    # 5. Agent获取并分析数据
+    analysis_context = {}
+    for topic in selected_data['primary_topics']:
+        if topic in capabilities['topic_inventory']:
+            analysis_context[topic] = fetch_topic_data(topic, selected_data['time_windows'])
+
+    return analysis_context
+```
+
+## 🎯 总结：Agent的"智能"本质
+
+**Agent知道ULog里有什么数据的方法：**
+1. **自动扫描**: 启动时扫描`ulog.data_list`获取所有话题
+2. **结构解析**: 分析每个话题的字段和数据类型
+3. **能力映射**: 构建话题→功能的映射关系
+
+**Agent知道要获取哪些数据的方法：**
+1. **消息分析**: 从logged_messages中提取关键信息
+2. **模式匹配**: 使用正则表达式识别事件类型
+3. **知识库查询**: 根据PX4专业知识确定相关话题
+4. **LLM增强**: 使用GPT进行智能优先级排序和数据选择
+
+**这就是MCP架构的核心：让AI像专业工程师一样，知道在什么情况下应该查看什么数据！** 🚁🤖✨
